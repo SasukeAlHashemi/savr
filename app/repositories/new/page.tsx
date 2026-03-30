@@ -1,61 +1,103 @@
-const contentTypes = [
-  "Hyperlink",
-  "JPG",
-  "PNG",
-  "PDF",
-  "DOCX",
-  "PPTX",
-  "XLSX",
-  "MP3",
-  "MP4",
-];
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  RepositoryForm,
+  type RepositoryFormValues,
+} from "@/components/repository-form";
+import { createClient } from "@/lib/supabase/client";
 
 export default function NewRepositoryPage() {
+  const router = useRouter();
+  const [userId, setUserId] = useState("");
+  const [isLoadingPage, setIsLoadingPage] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadUser() {
+      const supabase = createClient();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (!isActive) {
+        return;
+      }
+
+      if (error || !user) {
+        router.replace("/login");
+        return;
+      }
+
+      setUserId(user.id);
+      setIsLoadingPage(false);
+    }
+
+    void loadUser();
+
+    return () => {
+      isActive = false;
+    };
+  }, [router]);
+
+  async function handleSubmit(values: RepositoryFormValues) {
+    setErrorMessage("");
+    setIsSubmitting(true);
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.from("repositories").insert({
+        user_id: userId,
+        name: values.name,
+        description: values.description || null,
+        allowed_types: values.allowedTypes,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not create the repository. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (isLoadingPage) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-16 text-white">
+        <p className="text-sm text-slate-300">Preparing the repository form...</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
-      <section className="mx-auto max-w-3xl rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl shadow-slate-950/40">
-        <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
-          New Repository
-        </p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-          Create a repository for a specific kind of content.
-        </h1>
-        <p className="mt-3 text-sm leading-7 text-slate-300">
-          This page will later save repository data to Supabase. For now, it
-          shows the exact fields we&apos;ll build next.
-        </p>
-
-        <div className="mt-8 space-y-6">
-          <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-            <p className="text-sm font-medium text-slate-100">Repository name</p>
-            <div className="mt-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-400">
-              Example: Social saves
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-            <div className="flex items-center justify-between gap-4">
-              <p className="text-sm font-medium text-slate-100">
-                Allowed content types
-              </p>
-              <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
-                Max 3 for free
-              </span>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-3">
-              {contentTypes.map((type) => (
-                <span
-                  key={type}
-                  className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-200"
-                >
-                  {type}
-                </span>
-              ))}
-            </div>
-          </section>
-        </div>
-      </section>
+      <RepositoryForm
+        eyebrow="New Repository"
+        title="Create a repository for a specific kind of content."
+        description="Choose a name, an optional description, and up to 3 content types. When you submit this form, the repository will be saved in Supabase."
+        submitLabel="Create repository"
+        submitPendingLabel="Creating repository..."
+        backHref="/dashboard"
+        backLabel="Back to dashboard"
+        isSubmitting={isSubmitting}
+        errorMessage={errorMessage}
+        onSubmit={handleSubmit}
+      />
     </main>
   );
 }

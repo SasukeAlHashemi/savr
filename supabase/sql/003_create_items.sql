@@ -20,6 +20,10 @@ create table if not exists public.items (
       )
     ),
   original_url text,
+  storage_path text,
+  file_name text,
+  mime_type text,
+  file_size_bytes bigint,
   preview_title text,
   preview_description text,
   preview_image_url text,

@@ -9,6 +9,10 @@ export type RepositoryItem = {
   source_mode: SourceMode;
   item_type: ContentType;
   original_url: string | null;
+  storage_path: string | null;
+  file_name: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
   preview_title: string | null;
   preview_description: string | null;
   preview_image_url: string | null;

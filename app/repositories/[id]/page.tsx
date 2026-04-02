@@ -102,10 +102,13 @@ export default function RepositoryDetailPage() {
   const [userId, setUserId] = useState("");
   const [linkErrorMessage, setLinkErrorMessage] = useState("");
   const [fileErrorMessage, setFileErrorMessage] = useState("");
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
+  const [deleteNoticeMessage, setDeleteNoticeMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddItemPanelOpen, setIsAddItemPanelOpen] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
   const previewRepairAttemptedIds = useRef<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -338,6 +341,77 @@ export default function RepositoryDetailPage() {
       isActive = false;
     };
   }, [items]);
+
+  async function handleDeleteItem(item: RepositoryItem) {
+    const itemLabel =
+      item.source_mode === "upload"
+        ? item.file_name || `${item.item_type} file`
+        : item.preview_title || item.original_url || "this link";
+
+    const confirmed = window.confirm(
+      `Delete "${itemLabel}" from this repository?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteErrorMessage("");
+    setDeleteNoticeMessage("");
+    setDeletingItemId(item.id);
+
+    try {
+      const supabase = createClient();
+      const { error: deleteRowError } = await supabase
+        .from("items")
+        .delete()
+        .eq("id", item.id);
+
+      if (deleteRowError) {
+        throw deleteRowError;
+      }
+
+      let storageCleanupFailed = false;
+
+      if (item.source_mode === "upload" && item.storage_path) {
+        const { error: storageDeleteError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove([item.storage_path]);
+
+        if (storageDeleteError) {
+          storageCleanupFailed = true;
+        }
+      }
+
+      setItems((currentItems) =>
+        currentItems.filter((currentItem) => currentItem.id !== item.id),
+      );
+      setAssetUrls((currentUrls) => {
+        const nextUrls = { ...currentUrls };
+        delete nextUrls[item.id];
+        return nextUrls;
+      });
+      setAssetUrlStatuses((currentStatuses) => {
+        const nextStatuses = { ...currentStatuses };
+        delete nextStatuses[item.id];
+        return nextStatuses;
+      });
+
+      if (storageCleanupFailed) {
+        setDeleteNoticeMessage(
+          "The item was deleted from the repository, but its uploaded file could not be removed from storage.",
+        );
+      }
+    } catch (error) {
+      setDeleteErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not delete the item. Please try again.",
+      );
+    } finally {
+      setDeletingItemId(null);
+    }
+  }
 
   async function handleAddFile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -759,6 +833,18 @@ export default function RepositoryDetailPage() {
             Links and uploaded files both appear here as preview cards.
           </p>
 
+          {deleteErrorMessage ? (
+            <p className="mt-6 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+              {deleteErrorMessage}
+            </p>
+          ) : null}
+
+          {deleteNoticeMessage ? (
+            <p className="mt-6 rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
+              {deleteNoticeMessage}
+            </p>
+          ) : null}
+
           {items.length === 0 ? (
             <div className="mt-8 rounded-3xl border border-dashed border-white/15 bg-slate-900/40 p-8 text-center">
               <h3 className="text-2xl font-semibold text-white">
@@ -925,6 +1011,16 @@ export default function RepositoryDetailPage() {
                             >
                               Download
                             </a>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteItem(item)}
+                              disabled={deletingItemId === item.id}
+                              className="inline-flex rounded-full border border-rose-400/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {deletingItemId === item.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
                           </div>
                         ) : assetUrlStatuses[item.id] === "error" ? (
                           <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -938,23 +1034,57 @@ export default function RepositoryDetailPage() {
                             >
                               Retry link
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteItem(item)}
+                              disabled={deletingItemId === item.id}
+                              className="inline-flex rounded-full border border-rose-400/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {deletingItemId === item.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
                           </div>
                         ) : (
-                          <p className="mt-4 text-sm text-slate-400">
-                            Preparing file access link...
-                          </p>
+                          <div className="mt-4 flex flex-wrap items-center gap-3">
+                            <p className="text-sm text-slate-400">
+                              Preparing file access link...
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => void handleDeleteItem(item)}
+                              disabled={deletingItemId === item.id}
+                              className="inline-flex rounded-full border border-rose-400/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {deletingItemId === item.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          </div>
                         )}
                       </>
                     ) : (
                       <>
-                        <a
-                          href={item.original_url ?? "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-5 inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-                        >
-                          Open original link
-                        </a>
+                        <div className="mt-5 flex flex-wrap gap-3">
+                          <a
+                            href={item.original_url ?? "#"}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                          >
+                            Open original link
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => void handleDeleteItem(item)}
+                            disabled={deletingItemId === item.id}
+                            className="inline-flex rounded-full border border-rose-400/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingItemId === item.id
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
+                        </div>
                         <p className="mt-4 break-all text-xs leading-6 text-slate-400">
                           {item.original_url}
                         </p>

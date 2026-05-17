@@ -37,7 +37,7 @@ export default function DashboardPage() {
 
       const { data: repositoryRows, error: repositoryError } = await supabase
         .from("repositories")
-        .select("id, name, description, allowed_types, created_at")
+        .select("id, name, description, visibility, allowed_types, created_at")
         .order("created_at", { ascending: false });
 
       if (!isActive) {
@@ -120,6 +120,12 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap gap-3">
             <Link
+              href="/explore"
+              className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Explore repositories
+            </Link>
+            <Link
               href="/repositories/new"
               className="inline-flex rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
             >
@@ -181,6 +187,17 @@ export default function DashboardPage() {
                   {repository.allowed_types.length} content type
                   {repository.allowed_types.length === 1 ? "" : "s"}
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${
+                      repository.visibility === "public"
+                        ? "border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                        : "border border-amber-300/30 bg-amber-300/10 text-amber-100"
+                    }`}
+                  >
+                    {repository.visibility}
+                  </span>
+                </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {repository.allowed_types.map((type) => (
                     <span

@@ -47,7 +47,7 @@ export default function EditRepositoryPage() {
 
       const { data, error } = await supabase
         .from("repositories")
-        .select("id, name, description, allowed_types, created_at")
+        .select("id, name, description, visibility, allowed_types, created_at")
         .eq("id", repositoryId)
         .single();
 
@@ -88,6 +88,7 @@ export default function EditRepositoryPage() {
         .update({
           name: values.name,
           description: values.description || null,
+          visibility: values.visibility,
           allowed_types: values.allowedTypes,
         })
         .eq("id", repository.id);
@@ -132,7 +133,7 @@ export default function EditRepositoryPage() {
       <RepositoryForm
         eyebrow="Edit Repository"
         title={`Update ${repository.name}`}
-        description="Change the repository name, add or update an optional description, and adjust its allowed content types."
+        description="Change the repository name, add or update an optional description, switch between public and secret visibility, and adjust its allowed content types."
         submitLabel="Save changes"
         submitPendingLabel="Saving changes..."
         backHref="/dashboard"
@@ -142,6 +143,7 @@ export default function EditRepositoryPage() {
         initialValues={{
           name: repository.name,
           description: repository.description ?? "",
+          visibility: repository.visibility,
           allowedTypes: repository.allowed_types,
         }}
         onSubmit={handleSubmit}

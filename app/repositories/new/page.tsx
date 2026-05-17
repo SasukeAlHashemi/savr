@@ -11,7 +11,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function NewRepositoryPage() {
   const router = useRouter();
-  const [userId, setUserId] = useState("");
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -35,7 +34,6 @@ export default function NewRepositoryPage() {
         return;
       }
 
-      setUserId(user.id);
       setIsLoadingPage(false);
     }
 
@@ -52,10 +50,20 @@ export default function NewRepositoryPage() {
 
     try {
       const supabase = createClient();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("Your session has expired. Please log in again.");
+      }
+
       const { error } = await supabase.from("repositories").insert({
-        user_id: userId,
+        user_id: user.id,
         name: values.name,
         description: values.description || null,
+        visibility: values.visibility,
         allowed_types: values.allowedTypes,
       });
 
@@ -89,7 +97,7 @@ export default function NewRepositoryPage() {
       <RepositoryForm
         eyebrow="New Repository"
         title="Create a repository for a specific kind of content."
-        description="Choose a name, an optional description, and up to 3 content types. When you submit this form, the repository will be saved in Supabase."
+        description="Choose a name, an optional description, whether the repository is public or secret, and up to 3 content types. When you submit this form, the repository will be saved in Supabase."
         submitLabel="Create repository"
         submitPendingLabel="Creating repository..."
         backHref="/dashboard"

@@ -8,6 +8,7 @@ export type RepositoryItem = {
   user_id: string;
   source_mode: SourceMode;
   item_type: ContentType;
+  share_slug: string | null;
   original_url: string | null;
   storage_path: string | null;
   file_name: string | null;

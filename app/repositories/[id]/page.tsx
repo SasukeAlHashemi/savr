@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
+import { OfficeFilePreview } from "@/components/office-file-preview";
 import { XPostEmbed } from "@/components/x-post-embed";
 import { getHostname, isXPostUrl, isYouTubeUrl } from "@/lib/link-preview";
 import { createClient } from "@/lib/supabase/client";
@@ -42,48 +43,20 @@ function formatFileSize(fileSizeBytes: number | null) {
   return `${roundedValue} ${units[unitIndex]}`;
 }
 
-function OfficeFilePreview({ itemType }: { itemType: RepositoryItem["item_type"] }) {
-  const previewTheme = {
-    DOCX: {
-      badge: "W",
-      badgeClass: "bg-blue-600",
-      frameClass: "from-blue-950 via-slate-900 to-slate-950",
-    },
-    PPTX: {
-      badge: "P",
-      badgeClass: "bg-orange-500",
-      frameClass: "from-orange-950 via-slate-900 to-slate-950",
-    },
-    XLSX: {
-      badge: "X",
-      badgeClass: "bg-emerald-600",
-      frameClass: "from-emerald-950 via-slate-900 to-slate-950",
-    },
-  }[itemType as "DOCX" | "PPTX" | "XLSX"];
-
-  if (!previewTheme) {
-    return null;
+async function copyTextToClipboard(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
   }
 
-  return (
-    <div
-      className={`flex items-center justify-center bg-gradient-to-br px-6 py-10 ${previewTheme.frameClass}`}
-    >
-      <div className="relative h-36 w-28 rounded-[2rem] bg-white shadow-2xl shadow-black/30">
-        <div className="absolute right-0 top-0 h-10 w-10 rounded-bl-3xl rounded-tr-[2rem] bg-slate-200" />
-        <div className="absolute left-5 top-6 space-y-2">
-          <div className="h-2 w-12 rounded-full bg-slate-200" />
-          <div className="h-2 w-10 rounded-full bg-slate-200" />
-          <div className="h-2 w-8 rounded-full bg-slate-200" />
-        </div>
-        <div
-          className={`absolute -left-4 bottom-5 flex h-16 w-16 items-center justify-center rounded-3xl text-3xl font-black text-white shadow-xl ${previewTheme.badgeClass}`}
-        >
-          {previewTheme.badge}
-        </div>
-      </div>
-    </div>
-  );
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  document.execCommand("copy");
+  document.body.removeChild(textArea);
 }
 
 export default function RepositoryDetailPage() {
@@ -94,6 +67,9 @@ export default function RepositoryDetailPage() {
   const [repository, setRepository] = useState<Repository | null>(null);
   const [items, setItems] = useState<RepositoryItem[]>([]);
   const [assetUrls, setAssetUrls] = useState<Record<number, string>>({});
+  const [assetDownloadUrls, setAssetDownloadUrls] = useState<
+    Record<number, string>
+  >({});
   const [assetUrlStatuses, setAssetUrlStatuses] = useState<
     Record<number, "idle" | "loading" | "ready" | "error">
   >({});
@@ -104,11 +80,21 @@ export default function RepositoryDetailPage() {
   const [fileErrorMessage, setFileErrorMessage] = useState("");
   const [deleteErrorMessage, setDeleteErrorMessage] = useState("");
   const [deleteNoticeMessage, setDeleteNoticeMessage] = useState("");
+  const [shareErrorMessage, setShareErrorMessage] = useState("");
+  const [shareDialog, setShareDialog] = useState<{
+    itemId: number;
+    url: string;
+    title: string;
+    helperText: string;
+  } | null>(null);
+  const [shareDialogErrorMessage, setShareDialogErrorMessage] = useState("");
+  const [shareDialogNoticeMessage, setShareDialogNoticeMessage] = useState("");
   const [loadError, setLoadError] = useState("");
   const [isLoadingPage, setIsLoadingPage] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAddItemPanelOpen, setIsAddItemPanelOpen] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<number | null>(null);
+  const [sharingItemId, setSharingItemId] = useState<number | null>(null);
   const previewRepairAttemptedIds = useRef<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -151,7 +137,7 @@ export default function RepositoryDetailPage() {
 
       const { data: repositoryRow, error: repositoryError } = await supabase
         .from("repositories")
-        .select("id, name, description, allowed_types, created_at")
+        .select("id, name, description, visibility, allowed_types, created_at")
         .eq("id", repositoryId)
         .single();
 
@@ -168,7 +154,7 @@ export default function RepositoryDetailPage() {
       const { data: itemRows, error: itemError } = await supabase
         .from("items")
         .select(
-          "id, repository_id, user_id, source_mode, item_type, original_url, storage_path, file_name, mime_type, file_size_bytes, preview_title, preview_description, preview_image_url, preview_site_name, created_at",
+          "id, repository_id, user_id, source_mode, item_type, share_slug, original_url, storage_path, file_name, mime_type, file_size_bytes, preview_title, preview_description, preview_image_url, preview_site_name, created_at",
         )
         .eq("repository_id", repositoryId)
         .order("created_at", { ascending: false });
@@ -211,17 +197,36 @@ export default function RepositoryDetailPage() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.storage
+      const { data: previewUrlData, error: previewUrlError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .createSignedUrl(item.storage_path, 60 * 60);
 
-      if (error || !data?.signedUrl) {
-        throw error ?? new Error("Could not generate a file access link.");
+      const { data: downloadUrlData, error: downloadUrlError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(item.storage_path, 60 * 60, {
+          download: item.file_name || true,
+        });
+
+      if (
+        previewUrlError ||
+        !previewUrlData?.signedUrl ||
+        downloadUrlError ||
+        !downloadUrlData?.signedUrl
+      ) {
+        throw (
+          previewUrlError ??
+          downloadUrlError ??
+          new Error("Could not generate a file access link.")
+        );
       }
 
       setAssetUrls((currentUrls) => ({
         ...currentUrls,
-        [item.id]: data.signedUrl,
+        [item.id]: previewUrlData.signedUrl,
+      }));
+      setAssetDownloadUrls((currentUrls) => ({
+        ...currentUrls,
+        [item.id]: downloadUrlData.signedUrl,
       }));
       setAssetUrlStatuses((currentStatuses) => ({
         ...currentStatuses,
@@ -342,6 +347,99 @@ export default function RepositoryDetailPage() {
     };
   }, [items]);
 
+  function closeShareDialog() {
+    setShareDialog(null);
+    setShareDialogErrorMessage("");
+    setShareDialogNoticeMessage("");
+  }
+
+  async function handleCopyShareLink() {
+    if (!shareDialog) {
+      return;
+    }
+
+    setShareDialogErrorMessage("");
+    setShareDialogNoticeMessage("");
+
+    try {
+      await copyTextToClipboard(shareDialog.url);
+      setShareDialogNoticeMessage("Link copied to your clipboard.");
+    } catch (error) {
+      setShareDialogErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not copy the link. Please try again.",
+      );
+    }
+  }
+
+  async function handleShareItem(item: RepositoryItem) {
+    setShareErrorMessage("");
+    setShareDialogErrorMessage("");
+    setShareDialogNoticeMessage("");
+    setSharingItemId(item.id);
+
+    try {
+      if (item.source_mode === "link") {
+        if (!item.original_url) {
+          throw new Error("This saved link does not have a URL to share.");
+        }
+
+        setShareDialog({
+          itemId: item.id,
+          url: item.original_url,
+          title: "Share original link",
+          helperText:
+            "This item lives on its original website, so sharing it keeps the original URL.",
+        });
+        return;
+      }
+
+      let shareSlug = item.share_slug;
+
+      if (!shareSlug) {
+        shareSlug = crypto.randomUUID();
+        const supabase = createClient();
+        const { error } = await supabase
+          .from("items")
+          .update({ share_slug: shareSlug })
+          .eq("id", item.id);
+
+        if (error) {
+          throw error;
+        }
+
+        setItems((currentItems) =>
+          currentItems.map((currentItem) =>
+            currentItem.id === item.id
+              ? {
+                  ...currentItem,
+                  share_slug: shareSlug,
+                }
+              : currentItem,
+          ),
+        );
+      }
+
+      const shareUrl = `${window.location.origin}/share/${shareSlug}`;
+      setShareDialog({
+        itemId: item.id,
+        url: shareUrl,
+        title: "Share Savr link",
+        helperText:
+          "Anyone with this link can open the shared file page in Savr.",
+      });
+    } catch (error) {
+      setShareErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not create the share link. Please try again.",
+      );
+    } finally {
+      setSharingItemId(null);
+    }
+  }
+
   async function handleDeleteItem(item: RepositoryItem) {
     const itemLabel =
       item.source_mode === "upload"
@@ -391,11 +489,19 @@ export default function RepositoryDetailPage() {
         delete nextUrls[item.id];
         return nextUrls;
       });
+      setAssetDownloadUrls((currentUrls) => {
+        const nextUrls = { ...currentUrls };
+        delete nextUrls[item.id];
+        return nextUrls;
+      });
       setAssetUrlStatuses((currentStatuses) => {
         const nextStatuses = { ...currentStatuses };
         delete nextStatuses[item.id];
         return nextStatuses;
       });
+      setShareDialog((currentDialog) =>
+        currentDialog?.itemId === item.id ? null : currentDialog,
+      );
 
       if (storageCleanupFailed) {
         setDeleteNoticeMessage(
@@ -459,12 +565,27 @@ export default function RepositoryDetailPage() {
         throw uploadError;
       }
 
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+      const { data: previewUrlData, error: previewUrlError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .createSignedUrl(storagePath, 60 * 60);
 
-      if (signedUrlError) {
-        throw signedUrlError;
+      const { data: downloadUrlData, error: downloadUrlError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(storagePath, 60 * 60, {
+          download: selectedFile.name || true,
+        });
+
+      if (
+        previewUrlError ||
+        !previewUrlData?.signedUrl ||
+        downloadUrlError ||
+        !downloadUrlData?.signedUrl
+      ) {
+        throw (
+          previewUrlError ??
+          downloadUrlError ??
+          new Error("Could not generate a file access link.")
+        );
       }
 
       const { data, error } = await supabase
@@ -474,13 +595,14 @@ export default function RepositoryDetailPage() {
           user_id: userId,
           source_mode: "upload",
           item_type: detectedType,
+          share_slug: crypto.randomUUID(),
           storage_path: storagePath,
           file_name: selectedFile.name,
           mime_type: selectedFile.type || null,
           file_size_bytes: selectedFile.size,
         })
         .select(
-          "id, repository_id, user_id, source_mode, item_type, original_url, storage_path, file_name, mime_type, file_size_bytes, preview_title, preview_description, preview_image_url, preview_site_name, created_at",
+          "id, repository_id, user_id, source_mode, item_type, share_slug, original_url, storage_path, file_name, mime_type, file_size_bytes, preview_title, preview_description, preview_image_url, preview_site_name, created_at",
         )
         .single();
 
@@ -493,7 +615,11 @@ export default function RepositoryDetailPage() {
       setItems((currentItems) => [nextItem, ...currentItems]);
       setAssetUrls((currentUrls) => ({
         ...currentUrls,
-        [nextItem.id]: signedUrlData.signedUrl,
+        [nextItem.id]: previewUrlData.signedUrl,
+      }));
+      setAssetDownloadUrls((currentUrls) => ({
+        ...currentUrls,
+        [nextItem.id]: downloadUrlData.signedUrl,
       }));
       setAssetUrlStatuses((currentStatuses) => ({
         ...currentStatuses,
@@ -580,7 +706,7 @@ export default function RepositoryDetailPage() {
           preview_site_name: previewPayload.preview.siteName ?? null,
         })
         .select(
-          "id, repository_id, user_id, source_mode, item_type, original_url, preview_title, preview_description, preview_image_url, preview_site_name, created_at",
+          "id, repository_id, user_id, source_mode, item_type, share_slug, original_url, preview_title, preview_description, preview_image_url, preview_site_name, created_at",
         )
         .single();
 
@@ -643,6 +769,17 @@ export default function RepositoryDetailPage() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
                 {repository.description || "No description added yet."}
               </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${
+                    repository.visibility === "public"
+                      ? "border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                      : "border border-amber-300/30 bg-amber-300/10 text-amber-100"
+                  }`}
+                >
+                  {repository.visibility}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -845,6 +982,12 @@ export default function RepositoryDetailPage() {
             </p>
           ) : null}
 
+          {shareErrorMessage ? (
+            <p className="mt-6 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+              {shareErrorMessage}
+            </p>
+          ) : null}
+
           {items.length === 0 ? (
             <div className="mt-8 rounded-3xl border border-dashed border-white/15 bg-slate-900/40 p-8 text-center">
               <h3 className="text-2xl font-semibold text-white">
@@ -994,23 +1137,29 @@ export default function RepositoryDetailPage() {
                           ) : null}
                         </div>
 
-                        {assetUrls[item.id] ? (
+                        {assetUrls[item.id] && assetDownloadUrls[item.id] ? (
                           <div className="mt-5 flex flex-wrap gap-3">
-                            <a
-                              href={assetUrls[item.id]}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <Link
+                              href={`/files/${item.id}`}
                               className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
                             >
                               Open file
-                            </a>
+                            </Link>
                             <a
-                              href={assetUrls[item.id]}
+                              href={assetDownloadUrls[item.id]}
                               download={item.file_name ?? undefined}
                               className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
                             >
                               Download
                             </a>
+                            <button
+                              type="button"
+                              onClick={() => void handleShareItem(item)}
+                              disabled={sharingItemId === item.id}
+                              className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {sharingItemId === item.id ? "Sharing..." : "Share"}
+                            </button>
                             <button
                               type="button"
                               onClick={() => void handleDeleteItem(item)}
@@ -1036,6 +1185,14 @@ export default function RepositoryDetailPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => void handleShareItem(item)}
+                              disabled={sharingItemId === item.id}
+                              className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {sharingItemId === item.id ? "Sharing..." : "Share"}
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => void handleDeleteItem(item)}
                               disabled={deletingItemId === item.id}
                               className="inline-flex rounded-full border border-rose-400/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1050,6 +1207,14 @@ export default function RepositoryDetailPage() {
                             <p className="text-sm text-slate-400">
                               Preparing file access link...
                             </p>
+                            <button
+                              type="button"
+                              onClick={() => void handleShareItem(item)}
+                              disabled={sharingItemId === item.id}
+                              className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {sharingItemId === item.id ? "Sharing..." : "Share"}
+                            </button>
                             <button
                               type="button"
                               onClick={() => void handleDeleteItem(item)}
@@ -1076,6 +1241,14 @@ export default function RepositoryDetailPage() {
                           </a>
                           <button
                             type="button"
+                            onClick={() => void handleShareItem(item)}
+                            disabled={sharingItemId === item.id}
+                            className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {sharingItemId === item.id ? "Sharing..." : "Share"}
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => void handleDeleteItem(item)}
                             disabled={deletingItemId === item.id}
                             className="inline-flex rounded-full border border-rose-400/30 px-4 py-2 text-sm font-medium text-rose-200 transition hover:bg-rose-400/10 disabled:cursor-not-allowed disabled:opacity-60"
@@ -1097,6 +1270,74 @@ export default function RepositoryDetailPage() {
           )}
         </section>
       </section>
+
+      {shareDialog ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-6 py-8 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-black/50">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
+                  Share Item
+                </p>
+                <h2 className="mt-3 text-2xl font-semibold text-white">
+                  {shareDialog.title}
+                </h2>
+                <p className="mt-3 text-sm leading-7 text-slate-300">
+                  {shareDialog.helperText}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeShareDialog}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-lg text-slate-300 transition hover:bg-white/10 hover:text-white"
+                aria-label="Close share dialog"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <input
+                type="text"
+                value={shareDialog.url}
+                readOnly
+                onFocus={(event) => event.currentTarget.select()}
+                className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-slate-100 outline-none ring-0"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCopyShareLink()}
+                className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+              >
+                Copy
+              </button>
+            </div>
+
+            {shareDialogErrorMessage ? (
+              <p className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                {shareDialogErrorMessage}
+              </p>
+            ) : null}
+
+            {shareDialogNoticeMessage ? (
+              <p className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100">
+                {shareDialogNoticeMessage}
+              </p>
+            ) : null}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={closeShareDialog}
+                className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

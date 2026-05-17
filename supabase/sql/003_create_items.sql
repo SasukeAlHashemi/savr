@@ -19,6 +19,7 @@ create table if not exists public.items (
         ]::text[]
       )
     ),
+  share_slug text unique,
   original_url text,
   storage_path text,
   file_name text,

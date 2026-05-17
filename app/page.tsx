@@ -33,6 +33,12 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-4 pt-2">
               <Link
+                href="/explore"
+                className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Explore repositories
+              </Link>
+              <Link
                 href="/login"
                 className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
               >
@@ -57,6 +63,7 @@ export default function Home() {
               <li>3. Save links and upload files</li>
               <li>4. Show previews inside each repository</li>
               <li>5. Share uploaded files with public pages</li>
+              <li>6. Choose public or secret repositories</li>
             </ul>
           </div>
         </div>

@@ -3,6 +3,8 @@ create table if not exists public.repositories (
   user_id uuid not null references auth.users (id) on delete cascade,
   name text not null check (char_length(trim(name)) > 0),
   description text,
+  visibility text not null default 'public'
+    check (visibility in ('public', 'secret')),
   allowed_types text[] not null
     check (cardinality(allowed_types) between 1 and 3)
     check (
@@ -20,6 +22,9 @@ create table if not exists public.repositories (
     ),
   created_at timestamptz not null default now()
 );
+
+create index if not exists repositories_visibility_idx
+on public.repositories (visibility);
 
 alter table public.repositories enable row level security;
 

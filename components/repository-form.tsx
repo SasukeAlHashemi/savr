@@ -4,12 +4,18 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import Link from "next/link";
 
-import { CONTENT_TYPES, type ContentType } from "@/lib/repositories";
+import {
+  CONTENT_TYPES,
+  REPOSITORY_VISIBILITIES,
+  type ContentType,
+  type RepositoryVisibility,
+} from "@/lib/repositories";
 
 export type RepositoryFormValues = {
   name: string;
   description: string;
   allowedTypes: ContentType[];
+  visibility: RepositoryVisibility;
 };
 
 type RepositoryFormProps = {
@@ -46,6 +52,8 @@ export function RepositoryForm({
   const [selectedTypes, setSelectedTypes] = useState<ContentType[]>(
     initialValues?.allowedTypes ?? [],
   );
+  const [repositoryVisibility, setRepositoryVisibility] =
+    useState<RepositoryVisibility>(initialValues?.visibility ?? "public");
   const [localErrorMessage, setLocalErrorMessage] = useState("");
 
   function toggleType(type: ContentType) {
@@ -91,6 +99,7 @@ export function RepositoryForm({
       name: trimmedName,
       description: trimmedDescription,
       allowedTypes: selectedTypes,
+      visibility: repositoryVisibility,
     });
   }
 
@@ -150,6 +159,47 @@ export function RepositoryForm({
           <p className="mt-2 text-xs text-slate-400">
             Optional. Use this to describe what kind of links or files belong
             here.
+          </p>
+        </section>
+
+        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-medium text-slate-100">
+              Visibility
+            </p>
+            <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-slate-300">
+              {repositoryVisibility}
+            </span>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            {REPOSITORY_VISIBILITIES.map((visibility) => {
+              const isSelected = repositoryVisibility === visibility;
+
+              return (
+                <button
+                  key={visibility}
+                  type="button"
+                  onClick={() => {
+                    setLocalErrorMessage("");
+                    setRepositoryVisibility(visibility);
+                  }}
+                  className={`rounded-full px-4 py-2 text-sm capitalize transition ${
+                    isSelected
+                      ? "border border-emerald-300 bg-emerald-300/15 text-emerald-100"
+                      : "border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
+                  }`}
+                >
+                  {visibility}
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 text-xs leading-6 text-slate-400">
+            Public repositories appear normally in Savr&apos;s explore page.
+            Secret repositories still appear there too, but only as locked
+            cards for now.
           </p>
         </section>
 

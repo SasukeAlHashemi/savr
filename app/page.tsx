@@ -36,7 +36,7 @@ export default function Home() {
                 href="/explore"
                 className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
               >
-                Explore repositories
+                Explore users
               </Link>
               <Link
                 href="/login"

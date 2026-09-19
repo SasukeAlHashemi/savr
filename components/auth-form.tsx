@@ -61,6 +61,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         setPassword("");
         return;
       }
+      console.log(process.env.NEXT_PUBLIC_SUPABASE_URL);
+
 
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -99,6 +101,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@example.com"
           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
+          suppressHydrationWarning
           required
         />
       </label>
@@ -112,6 +115,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           placeholder="At least 6 characters"
           minLength={6}
           className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
+          suppressHydrationWarning
           required
         />
       </label>
@@ -132,6 +136,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         type="submit"
         disabled={isSubmitting}
         className="w-full rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-200"
+        suppressHydrationWarning
       >
         {isSubmitting ? "Please wait..." : copy.buttonLabel}
       </button>

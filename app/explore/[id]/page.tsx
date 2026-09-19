@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { OfficeFilePreview } from "@/components/office-file-preview";
+import { ProfileAvatar } from "@/components/profile-avatar";
 import { XPostEmbed } from "@/components/x-post-embed";
 import type { RepositoryItem } from "@/lib/items";
 import { getHostname, isXPostUrl, isYouTubeUrl } from "@/lib/link-preview";
+import { AVATAR_BUCKET, type Profile } from "@/lib/profiles";
 import type { Repository } from "@/lib/repositories";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -61,7 +63,7 @@ export default async function ExploreRepositoryPage({
   const supabase = createAdminClient();
   const { data: repositoryRow, error: repositoryError } = await supabase
     .from("repositories")
-    .select("id, name, description, visibility, allowed_types, created_at")
+    .select("id, user_id, name, description, visibility, allowed_types, created_at")
     .eq("id", repositoryId)
     .single();
 
@@ -69,7 +71,24 @@ export default async function ExploreRepositoryPage({
     notFound();
   }
 
-  const repository = repositoryRow as Repository;
+  const repository = repositoryRow as Repository & {
+    user_id: string;
+  };
+  const { data: ownerProfileRow, error: ownerProfileError } = await supabase
+    .from("profiles")
+    .select("id, username, avatar_path, created_at")
+    .eq("id", repository.user_id)
+    .single();
+
+  if (ownerProfileError || !ownerProfileRow) {
+    throw new Error(ownerProfileError?.message || "Repository owner not found.");
+  }
+
+  const ownerProfile = ownerProfileRow as Profile;
+  const ownerAvatarUrl = ownerProfile.avatar_path
+    ? supabase.storage.from(AVATAR_BUCKET).getPublicUrl(ownerProfile.avatar_path).data
+        .publicUrl
+    : null;
 
   if (repository.visibility === "secret") {
     return (
@@ -93,6 +112,26 @@ export default async function ExploreRepositoryPage({
               Secret
             </span>
           </div>
+
+          <Link
+            href={`/u/${ownerProfile.username}`}
+            className="mt-6 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-3 transition hover:bg-slate-900/80"
+          >
+            <ProfileAvatar
+              username={ownerProfile.username}
+              avatarUrl={ownerAvatarUrl}
+              className="h-12 w-12"
+              textClassName="text-base"
+            />
+            <div className="text-left">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                Owner
+              </p>
+              <p className="mt-1 text-sm font-medium text-white">
+                @{ownerProfile.username}
+              </p>
+            </div>
+          </Link>
 
           <h1 className="mt-6 text-4xl font-semibold tracking-tight">
             {repository.name}
@@ -118,12 +157,12 @@ export default async function ExploreRepositoryPage({
           </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/explore"
-              className="inline-flex rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-            >
-              Back to explore
-            </Link>
+              <Link
+                href="/explore"
+                className="inline-flex rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+              >
+                Back to users
+              </Link>
             <Link
               href="/dashboard"
               className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
@@ -198,6 +237,25 @@ export default async function ExploreRepositoryPage({
               <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
                 Public Repository
               </p>
+              <Link
+                href={`/u/${ownerProfile.username}`}
+                className="mt-4 inline-flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900/50 px-4 py-3 transition hover:bg-slate-900/80"
+              >
+                <ProfileAvatar
+                  username={ownerProfile.username}
+                  avatarUrl={ownerAvatarUrl}
+                  className="h-12 w-12"
+                  textClassName="text-base"
+                />
+                <div className="text-left">
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                    Owner
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-white">
+                    @{ownerProfile.username}
+                  </p>
+                </div>
+              </Link>
               <h1 className="mt-4 text-4xl font-semibold tracking-tight">
                 {repository.name}
               </h1>
@@ -211,7 +269,7 @@ export default async function ExploreRepositoryPage({
                 href="/explore"
                 className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
               >
-                Back to explore
+                Back to users
               </Link>
               <Link
                 href="/dashboard"

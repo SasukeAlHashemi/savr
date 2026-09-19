@@ -4,17 +4,74 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { ProfileAvatar } from "@/components/profile-avatar";
+import { AVATAR_BUCKET } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/client";
+import type { Profile } from "@/lib/profiles";
 import type { Repository } from "@/lib/repositories";
+
+function SearchIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H10l2 2h6.5A2.5 2.5 0 0 1 21 9.5v7A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [repositories, setRepositories] = useState<Repository[]>([]);
   const [itemCounts, setItemCounts] = useState<Record<number, number>>({});
   const [loadError, setLoadError] = useState("");
   const [isLoadingPage, setIsLoadingPage] = useState(true);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -32,6 +89,34 @@ export default function DashboardPage() {
 
       if (userError || !user) {
         router.replace("/login");
+        return;
+      }
+
+      const { data: profileRow, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, username, avatar_path, created_at")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!isActive) {
+        return;
+      }
+
+      if (profileError) {
+        setLoadError(
+          "The profiles table is not set up yet. Run the profile SQL files in Supabase, then refresh this page.",
+        );
+        setRepositories([]);
+        setItemCounts({});
+        setEmail(user.email ?? "Signed-in user");
+        setUsername("");
+        setAvatarUrl("");
+        setIsLoadingPage(false);
+        return;
+      }
+
+      if (!profileRow) {
+        router.replace("/onboarding/profile");
         return;
       }
 
@@ -70,6 +155,15 @@ export default function DashboardPage() {
       }
 
       setEmail(user.email ?? "Signed-in user");
+      setUsername((profileRow as Profile).username);
+      setAvatarUrl(
+        (profileRow as Profile).avatar_path
+          ? supabase.storage
+              .from(AVATAR_BUCKET)
+              .getPublicUrl((profileRow as Profile).avatar_path ?? "").data
+              .publicUrl
+          : "",
+      );
       setIsLoadingPage(false);
     }
 
@@ -79,15 +173,6 @@ export default function DashboardPage() {
       isActive = false;
     };
   }, [router]);
-
-  async function handleLogout() {
-    setIsLoggingOut(true);
-
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
 
   if (isLoadingPage) {
     return (
@@ -116,29 +201,56 @@ export default function DashboardPage() {
               Signed in as{" "}
               <span className="font-medium text-emerald-200">{email}</span>
             </p>
+            {username ? (
+              <p className="mt-2 text-sm text-slate-400">
+                Username:{" "}
+                <span className="font-medium text-emerald-200">
+                  @{username}
+                </span>
+              </p>
+            ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {username ? (
+              <Link
+                href={`/u/${username}`}
+                title="View your profile"
+                aria-label="View your profile"
+                className="inline-flex rounded-full border border-white/15 p-1.5 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                <ProfileAvatar
+                  username={username}
+                  avatarUrl={avatarUrl || null}
+                  className="h-10 w-10"
+                  textClassName="text-sm"
+                />
+              </Link>
+            ) : null}
             <Link
               href="/explore"
-              className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+              title="Search users"
+              aria-label="Search users"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 text-white transition hover:bg-white/10"
             >
-              Explore repositories
+              <SearchIcon />
+            </Link>
+            <Link
+              href="/explore/repositories"
+              title="Search repositories"
+              aria-label="Search repositories"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 text-white transition hover:bg-white/10"
+            >
+              <FolderIcon />
             </Link>
             <Link
               href="/repositories/new"
-              className="inline-flex rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
+              title="Create a new repository"
+              aria-label="Create a new repository"
+              className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-slate-950 transition hover:bg-emerald-300"
             >
-              New repository
+              <PlusIcon />
             </Link>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="inline-flex rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoggingOut ? "Logging out..." : "Log out"}
-            </button>
           </div>
         </div>
 

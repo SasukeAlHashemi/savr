@@ -273,7 +273,7 @@ export default function UserProfilePage() {
                 </div>
 
                 <Link
-                  href={`/explore/${repository.id}`}
+                  href={`/repositories/${repository.id}`}
                   className={`mt-6 inline-flex rounded-full px-4 py-2 text-sm font-semibold transition ${
                     repository.visibility === "public"
                       ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300"

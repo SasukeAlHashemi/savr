@@ -10,13 +10,11 @@ import {
   type FormEvent,
 } from "react";
 
-import { ProfileAvatar } from "@/components/profile-avatar";
+import { createClient } from "@/lib/supabase/client";
 
 type RepositorySuggestion = {
   id: number;
   name: string;
-  ownerUsername: string;
-  ownerAvatarUrl: string | null;
   visibility: "public" | "secret";
 };
 
@@ -51,6 +49,7 @@ export function RepositorySearchBox({
   const [suggestions, setSuggestions] = useState<RepositorySuggestion[]>([]);
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionError, setSuggestionError] = useState("");
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -72,9 +71,9 @@ export function RepositorySearchBox({
 
   useEffect(() => {
     const trimmedQuery = query.trim();
-    const controller = new AbortController();
+    let isActive = true;
 
-    const timeoutId = window.setTimeout(() => {
+    const timeoutId = window.setTimeout(async () => {
       const nextUrl = trimmedQuery
         ? `${pathname}?q=${encodeURIComponent(trimmedQuery)}`
         : pathname;
@@ -87,48 +86,82 @@ export function RepositorySearchBox({
         setSuggestions([]);
         setIsSuggestionsOpen(false);
         setIsLoadingSuggestions(false);
+        setSuggestionError("");
         return;
       }
 
       setIsLoadingSuggestions(true);
+      setSuggestionError("");
 
-      void fetch(
-        `/api/repository-search?q=${encodeURIComponent(trimmedQuery)}&limit=6`,
-        {
-          signal: controller.signal,
-        },
-      )
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error("Could not load repository suggestions.");
-          }
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-          return (await response.json()) as {
-            repositories?: RepositorySuggestion[];
-          };
-        })
-        .then((payload) => {
-          setSuggestions(payload.repositories ?? []);
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          throw new Error("Please log in to search your repositories.");
+        }
+
+        const { data, error } = await supabase
+          .from("repositories")
+          .select("id, name, visibility")
+          .eq("user_id", user.id)
+          .ilike("name", `%${trimmedQuery}%`)
+          .limit(6);
+
+        if (error) {
+          throw error;
+        }
+
+        const normalizedQuery = trimmedQuery.toLowerCase();
+        const nextSuggestions = ((data ?? []) as RepositorySuggestion[]).sort(
+          (left, right) => {
+            const leftName = left.name.toLowerCase();
+            const rightName = right.name.toLowerCase();
+            const leftStartsWithQuery = leftName.startsWith(normalizedQuery) ? 0 : 1;
+            const rightStartsWithQuery = rightName.startsWith(normalizedQuery) ? 0 : 1;
+
+            if (leftStartsWithQuery !== rightStartsWithQuery) {
+              return leftStartsWithQuery - rightStartsWithQuery;
+            }
+
+            if (leftName.length !== rightName.length) {
+              return leftName.length - rightName.length;
+            }
+
+            return leftName.localeCompare(rightName);
+          },
+        );
+
+        if (isActive) {
+          setSuggestions(nextSuggestions);
           setIsSuggestionsOpen(true);
-        })
-        .catch((error: unknown) => {
-          if (
-            error instanceof DOMException &&
-            error.name === "AbortError"
-          ) {
-            return;
-          }
-
+        }
+      } catch (error) {
+        if (isActive) {
           setSuggestions([]);
+          setSuggestionError(
+            error instanceof Error
+              ? error.message
+              : "Could not load repository suggestions.",
+          );
           setIsSuggestionsOpen(true);
-        })
-        .finally(() => {
+        }
+      } finally {
+        if (isActive) {
           setIsLoadingSuggestions(false);
-        });
+        }
+      }
     }, 220);
 
     return () => {
-      controller.abort();
+      isActive = false;
       window.clearTimeout(timeoutId);
     };
   }, [pathname, query, router]);
@@ -208,7 +241,7 @@ export function RepositorySearchBox({
               {suggestions.map((suggestion) => (
                 <Link
                   key={suggestion.id}
-                  href={`/explore/${suggestion.id}`}
+                  href={`/repositories/${suggestion.id}`}
                   className="flex items-center justify-between gap-4 px-5 py-4 transition hover:bg-white/5"
                   onClick={() => {
                     setIsSuggestionsOpen(false);
@@ -218,16 +251,7 @@ export function RepositorySearchBox({
                     <p className="truncate text-sm font-semibold text-white">
                       {suggestion.name}
                     </p>
-                    <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <ProfileAvatar
-                          username={suggestion.ownerUsername}
-                          avatarUrl={suggestion.ownerAvatarUrl}
-                          className="h-6 w-6"
-                          textClassName="text-[10px]"
-                        />
-                        <span>@{suggestion.ownerUsername}</span>
-                      </div>
+                    <div className="mt-2 text-xs text-slate-400">
                       <span
                         className={`rounded-full px-2 py-1 uppercase tracking-[0.18em] ${
                           suggestion.visibility === "public"
@@ -247,6 +271,11 @@ export function RepositorySearchBox({
               ))}
             </div>
           )}
+          {suggestionError ? (
+            <p className="border-t border-white/10 px-5 py-4 text-sm text-rose-200">
+              {suggestionError}
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

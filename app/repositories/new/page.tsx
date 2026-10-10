@@ -63,7 +63,6 @@ export default function NewRepositoryPage() {
         user_id: user.id,
         name: values.name,
         description: values.description || null,
-        allowed_types: values.allowedTypes,
       });
 
       if (error) {
@@ -96,7 +95,7 @@ export default function NewRepositoryPage() {
       <RepositoryForm
         eyebrow="New Repository"
         title="Create a repository for a specific kind of content."
-        description="Choose a name, an optional description, and up to 3 content types. When you submit this form, the repository will be saved in Supabase."
+        description="Choose a name and an optional description. When you submit this form, the repository will be saved in Supabase."
         submitLabel="Create repository"
         submitPendingLabel="Creating repository..."
         backHref="/dashboard"

@@ -104,7 +104,7 @@ export default function DashboardPage() {
 
       const { data: repositoryRows, error: repositoryError } = await supabase
         .from("repositories")
-        .select("id, name, description, allowed_types, created_at")
+        .select("id, name, description, created_at")
         .order("created_at", { ascending: false });
 
       if (!isActive) {
@@ -269,20 +269,6 @@ export default function DashboardPage() {
                 <p className="mt-3 text-sm leading-7 text-slate-300">
                   {repository.description || "No description added yet."}
                 </p>
-                <p className="mt-3 text-xs uppercase tracking-[0.2em] text-slate-400">
-                  {repository.allowed_types.length} content type
-                  {repository.allowed_types.length === 1 ? "" : "s"}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {repository.allowed_types.map((type) => (
-                    <span
-                      key={`${repository.id}-${type}`}
-                      className="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-200"
-                    >
-                      {type}
-                    </span>
-                  ))}
-                </div>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
                     href={`/repositories/${repository.id}`}

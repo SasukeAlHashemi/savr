@@ -65,7 +65,7 @@ export default function UserProfilePage() {
 
         const { data: repositoryRows, error: repositoryError } = await supabase
           .from("repositories")
-          .select("id, name, description, allowed_types, created_at")
+          .select("id, name, description, created_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -236,17 +236,6 @@ export default function UserProfilePage() {
                 <p className="mt-3 text-sm leading-7 text-slate-300">
                   {repository.description || "No description added yet."}
                 </p>
-
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {repository.allowed_types.map((type) => (
-                    <span
-                      key={`${repository.id}-${type}`}
-                      className="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-200"
-                    >
-                      {type}
-                    </span>
-                  ))}
-                </div>
 
                 <Link
                   href={`/repositories/${repository.id}`}

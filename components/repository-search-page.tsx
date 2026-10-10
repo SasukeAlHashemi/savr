@@ -44,7 +44,7 @@ export function RepositorySearchPage({
 
         let repositoryQuery = supabase
           .from("repositories")
-          .select("id, name, description, allowed_types, created_at")
+          .select("id, name, description, created_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 

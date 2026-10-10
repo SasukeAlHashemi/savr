@@ -103,23 +103,12 @@ function getFileExtension(fileName: string) {
   return fileName.slice(dotIndex).toLowerCase();
 }
 
-export function getAllowedUploadTypes(contentTypes: ContentType[]) {
-  return contentTypes.filter((type) => type !== "Hyperlink");
+export function getUploadAcceptValue() {
+  return UPLOAD_DEFINITIONS.flatMap((definition) => definition.accept).join(",");
 }
 
-export function getUploadAcceptValue(contentTypes: ContentType[]) {
-  const allowedUploadTypes = getAllowedUploadTypes(contentTypes);
-  const acceptValues = UPLOAD_DEFINITIONS.filter((definition) =>
-    allowedUploadTypes.includes(definition.type),
-  ).flatMap((definition) => definition.accept);
-
-  return acceptValues.join(",");
-}
-
-export function getUploadLabels(contentTypes: ContentType[]) {
-  return UPLOAD_DEFINITIONS.filter((definition) =>
-    contentTypes.includes(definition.type),
-  ).map((definition) => definition.label);
+export function getUploadLabels() {
+  return UPLOAD_DEFINITIONS.map((definition) => definition.label);
 }
 
 export function detectUploadContentType(file: Pick<File, "name" | "type">) {

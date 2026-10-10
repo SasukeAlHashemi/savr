@@ -4,15 +4,9 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import Link from "next/link";
 
-import {
-  CONTENT_TYPES,
-  type ContentType,
-} from "@/lib/repositories";
-
 export type RepositoryFormValues = {
   name: string;
   description: string;
-  allowedTypes: ContentType[];
 };
 
 type RepositoryFormProps = {
@@ -46,27 +40,7 @@ export function RepositoryForm({
   const [repositoryDescription, setRepositoryDescription] = useState(
     initialValues?.description ?? "",
   );
-  const [selectedTypes, setSelectedTypes] = useState<ContentType[]>(
-    initialValues?.allowedTypes ?? [],
-  );
   const [localErrorMessage, setLocalErrorMessage] = useState("");
-
-  function toggleType(type: ContentType) {
-    setLocalErrorMessage("");
-
-    setSelectedTypes((currentTypes) => {
-      if (currentTypes.includes(type)) {
-        return currentTypes.filter((currentType) => currentType !== type);
-      }
-
-      if (currentTypes.length >= 3) {
-        setLocalErrorMessage("Free repositories can only include up to 3 content types.");
-        return currentTypes;
-      }
-
-      return [...currentTypes, type];
-    });
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -80,20 +54,9 @@ export function RepositoryForm({
       return;
     }
 
-    if (selectedTypes.length === 0) {
-      setLocalErrorMessage("Please choose at least one content type.");
-      return;
-    }
-
-    if (selectedTypes.length > 3) {
-      setLocalErrorMessage("Free repositories can only include up to 3 content types.");
-      return;
-    }
-
     await onSubmit({
       name: trimmedName,
       description: trimmedDescription,
-      allowedTypes: selectedTypes,
     });
   }
 
@@ -154,38 +117,6 @@ export function RepositoryForm({
             Optional. Use this to describe what kind of links or files belong
             here.
           </p>
-        </section>
-
-        <section className="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-slate-100">
-              Allowed content types
-            </p>
-            <span className="rounded-full bg-amber-400/10 px-3 py-1 text-xs font-medium text-amber-200">
-              {selectedTypes.length}/3 selected
-            </span>
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3">
-            {CONTENT_TYPES.map((type) => {
-              const isSelected = selectedTypes.includes(type);
-
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => toggleType(type)}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
-                    isSelected
-                      ? "border border-emerald-300 bg-emerald-300/15 text-emerald-100"
-                      : "border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
-                  }`}
-                >
-                  {type}
-                </button>
-              );
-            })}
-          </div>
         </section>
 
         {activeErrorMessage ? (

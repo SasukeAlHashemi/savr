@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
@@ -13,7 +13,6 @@ import type { Repository } from "@/lib/repositories";
 import {
   buildStoragePath,
   detectUploadContentType,
-  getAllowedUploadTypes,
   getUploadAcceptValue,
   getUploadLabels,
   getUploadTypeLabel,
@@ -98,18 +97,6 @@ export default function RepositoryDetailPage() {
   const previewRepairAttemptedIds = useRef<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const supportsHyperlinks = useMemo(
-    () => repository?.allowed_types.includes("Hyperlink") ?? false,
-    [repository],
-  );
-
-  const allowedUploadTypes = useMemo(
-    () => getAllowedUploadTypes(repository?.allowed_types ?? []),
-    [repository],
-  );
-
-  const hasUploadTypes = allowedUploadTypes.length > 0;
-
   useEffect(() => {
     let isActive = true;
 
@@ -137,7 +124,7 @@ export default function RepositoryDetailPage() {
 
       const { data: repositoryRow, error: repositoryError } = await supabase
         .from("repositories")
-        .select("id, name, description, allowed_types, created_at")
+        .select("id, name, description, created_at")
         .eq("id", repositoryId)
         .single();
 
@@ -537,13 +524,6 @@ export default function RepositoryDetailPage() {
       return;
     }
 
-    if (!allowedUploadTypes.includes(detectedType)) {
-      setFileErrorMessage(
-        `This repository does not allow ${detectedType} uploads. Choose one of the selected repository types instead.`,
-      );
-      return;
-    }
-
     setIsSubmitting(true);
 
     const supabase = createClient();
@@ -644,11 +624,6 @@ export default function RepositoryDetailPage() {
   async function handleAddLink(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLinkErrorMessage("");
-
-    if (!supportsHyperlinks) {
-      setLinkErrorMessage("This repository does not allow hyperlinks.");
-      return;
-    }
 
     const trimmedLink = linkInput.trim();
 
@@ -803,16 +778,6 @@ export default function RepositoryDetailPage() {
             {items.length} saved item{items.length === 1 ? "" : "s"}
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            {repository.allowed_types.map((type) => (
-              <span
-                key={`${repository.id}-${type}`}
-                className="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs text-slate-200"
-              >
-                {type}
-              </span>
-            ))}
-          </div>
         </div>
 
         {isAddItemPanelOpen ? (
@@ -840,111 +805,96 @@ export default function RepositoryDetailPage() {
               </button>
             </div>
 
-            {supportsHyperlinks ? (
-              <>
-                <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                  {hasUploadTypes
-                    ? "You can add hyperlinks now. File upload support for the other selected types will be added next."
-                    : "This repository only supports hyperlinks right now, so you only need to paste the link you want to save."}
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+              Add a link or upload a supported file to this repository.
+            </p>
+
+            <form className="mt-6 space-y-4" onSubmit={handleAddLink}>
+              <label className="block">
+                <span className="text-sm font-medium text-slate-100">
+                  Link URL
+                </span>
+                <input
+                  type="url"
+                  value={linkInput}
+                  onChange={(event) => setLinkInput(event.target.value)}
+                  placeholder="https://x.com/... or https://youtube.com/..."
+                  className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
+                  required
+                />
+              </label>
+
+              {linkErrorMessage ? (
+                <p className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                  {linkErrorMessage}
                 </p>
+              ) : null}
 
-                <form className="mt-6 space-y-4" onSubmit={handleAddLink}>
-                  <label className="block">
-                    <span className="text-sm font-medium text-slate-100">
-                      Link URL
-                    </span>
-                    <input
-                      type="url"
-                      value={linkInput}
-                      onChange={(event) => setLinkInput(event.target.value)}
-                      placeholder="https://x.com/... or https://youtube.com/..."
-                      className="mt-3 w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-emerald-300"
-                      required
-                    />
-                  </label>
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-200"
+                >
+                  {isSubmitting ? "Saving link..." : "Save link"}
+                </button>
+              </div>
+            </form>
 
-                  {linkErrorMessage ? (
-                    <p className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                      {linkErrorMessage}
-                    </p>
-                  ) : null}
-
-                  <div className="flex justify-end">
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-200"
-                    >
-                      {isSubmitting ? "Saving link..." : "Save link"}
-                    </button>
-                  </div>
-                </form>
-              </>
-            ) : (
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                This repository does not allow hyperlinks, so only file uploads
-                are available here.
+            <div className="mt-8 border-t border-white/10 pt-8">
+              <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
+                Upload File
               </p>
-            )}
+              <h3 className="mt-4 text-2xl font-semibold tracking-tight">
+                Store a file in this repository.
+              </h3>
+              <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+                Supported file types: {getUploadLabels().join(", ")}.
+              </p>
 
-            {hasUploadTypes ? (
-              <>
-                <div className="mt-8 border-t border-white/10 pt-8">
-                  <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
-                    Upload File
+              <form className="mt-6 space-y-4" onSubmit={handleAddFile}>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-100">
+                    Choose a file
+                  </span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={getUploadAcceptValue()}
+                    onChange={(event) =>
+                      setSelectedFile(event.target.files?.[0] ?? null)
+                    }
+                    className="mt-3 block w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950"
+                    required
+                  />
+                </label>
+
+                {selectedFile ? (
+                  <p className="text-sm text-slate-300">
+                    Selected file:{" "}
+                    <span className="font-medium text-white">
+                      {selectedFile.name}
+                    </span>
                   </p>
-                  <h3 className="mt-4 text-2xl font-semibold tracking-tight">
-                    Store a file in this repository.
-                  </h3>
-                  <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                    Allowed file types here: {getUploadLabels(allowedUploadTypes).join(", ")}.
+                ) : null}
+
+                {fileErrorMessage ? (
+                  <p className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
+                    {fileErrorMessage}
                   </p>
+                ) : null}
 
-                  <form className="mt-6 space-y-4" onSubmit={handleAddFile}>
-                    <label className="block">
-                      <span className="text-sm font-medium text-slate-100">
-                        Choose a file
-                      </span>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept={getUploadAcceptValue(repository.allowed_types)}
-                        onChange={(event) =>
-                          setSelectedFile(event.target.files?.[0] ?? null)
-                        }
-                        className="mt-3 block w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-400 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950"
-                        required
-                      />
-                    </label>
-
-                    {selectedFile ? (
-                      <p className="text-sm text-slate-300">
-                        Selected file:{" "}
-                        <span className="font-medium text-white">
-                          {selectedFile.name}
-                        </span>
-                      </p>
-                    ) : null}
-
-                    {fileErrorMessage ? (
-                      <p className="rounded-2xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">
-                        {fileErrorMessage}
-                      </p>
-                    ) : null}
-
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-200"
-                      >
-                        {isSubmitting ? "Uploading file..." : "Upload file"}
-                      </button>
-                    </div>
-                  </form>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:bg-emerald-200"
+                  >
+                    {isSubmitting ? "Uploading file..." : "Upload file"}
+                  </button>
                 </div>
-              </>
-            ) : null}
+              </form>
+            </div>
           </section>
         ) : null}
 

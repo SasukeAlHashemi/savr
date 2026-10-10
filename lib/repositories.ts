@@ -20,6 +20,5 @@ export type Repository = {
   id: number;
   name: string;
   description: string | null;
-  allowed_types: ContentType[];
   created_at: string;
 };

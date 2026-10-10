@@ -10,24 +10,6 @@ import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/profiles";
 import type { Repository } from "@/lib/repositories";
 
-function SearchIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className="h-5 w-5"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="11" cy="11" r="7" />
-      <path d="m20 20-3.5-3.5" />
-    </svg>
-  );
-}
-
 function FolderIcon() {
   return (
     <svg
@@ -227,14 +209,6 @@ export default function DashboardPage() {
                 />
               </Link>
             ) : null}
-            <Link
-              href="/explore"
-              title="Search users"
-              aria-label="Search users"
-              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 text-white transition hover:bg-white/10"
-            >
-              <SearchIcon />
-            </Link>
             <Link
               href="/explore/repositories"
               title="Search repositories"

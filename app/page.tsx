@@ -33,12 +33,6 @@ export default function Home() {
 
             <div className="flex flex-wrap gap-4 pt-2">
               <Link
-                href="/explore"
-                className="rounded-full border border-white/15 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Explore users
-              </Link>
-              <Link
                 href="/login"
                 className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
               >

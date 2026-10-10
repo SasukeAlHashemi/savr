@@ -1,77 +1,160 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { ProfileAvatar } from "@/components/profile-avatar";
 import { AVATAR_BUCKET, type Profile } from "@/lib/profiles";
 import type { Repository } from "@/lib/repositories";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/client";
 
-type UserProfilePageProps = {
-  params: Promise<{
-    username: string;
-  }>;
-};
+export default function UserProfilePage() {
+  const { username } = useParams<{ username: string }>();
+  const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [itemCounts, setItemCounts] = useState<Record<number, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
-export default async function UserProfilePage({
-  params,
-}: UserProfilePageProps) {
-  const { username } = await params;
-  const normalizedUsername = username.trim().toLowerCase();
+  useEffect(() => {
+    let isActive = true;
 
-  if (!normalizedUsername) {
-    notFound();
+    async function loadProfile() {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
+
+        if (!isActive) {
+          return;
+        }
+
+        if (userError || !user) {
+          router.replace("/login");
+          return;
+        }
+
+        const { data: profileRow, error: profileError } = await supabase
+          .from("profiles")
+          .select("id, username, avatar_path, created_at")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (!isActive) {
+          return;
+        }
+
+        if (profileError) {
+          throw new Error(profileError.message);
+        }
+
+        if (!profileRow) {
+          router.replace("/onboarding/profile");
+          return;
+        }
+
+        if (profileRow.username !== username.trim().toLowerCase()) {
+          router.replace("/dashboard");
+          return;
+        }
+
+        const { data: repositoryRows, error: repositoryError } = await supabase
+          .from("repositories")
+          .select("id, name, description, visibility, allowed_types, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (repositoryError) {
+          throw new Error(repositoryError.message);
+        }
+
+        const ownRepositories = (repositoryRows ?? []) as Repository[];
+        const repositoryIds = ownRepositories.map((repository) => repository.id);
+        const { data: itemRows, error: itemError } =
+          repositoryIds.length > 0
+            ? await supabase
+                .from("items")
+                .select("repository_id")
+                .in("repository_id", repositoryIds)
+            : { data: [], error: null };
+
+        if (itemError) {
+          throw new Error(itemError.message);
+        }
+
+        const counts = (itemRows ?? []).reduce<Record<number, number>>(
+          (currentCounts, item) => {
+            const repositoryId = Number(item.repository_id);
+            currentCounts[repositoryId] = (currentCounts[repositoryId] ?? 0) + 1;
+            return currentCounts;
+          },
+          {},
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        setProfile(profileRow as Profile);
+        setAvatarUrl(
+          profileRow.avatar_path
+            ? supabase.storage
+                .from(AVATAR_BUCKET)
+                .getPublicUrl(profileRow.avatar_path).data.publicUrl
+            : null,
+        );
+        setRepositories(ownRepositories);
+        setItemCounts(counts);
+      } catch (error) {
+        if (isActive) {
+          setLoadError(
+            error instanceof Error ? error.message : "Could not load your profile.",
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadProfile();
+
+    return () => {
+      isActive = false;
+    };
+  }, [router, username]);
+
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-16 text-white">
+        <p className="text-sm text-slate-300">Loading your profile...</p>
+      </main>
+    );
   }
 
-  const supabase = createAdminClient();
-  const { data: profileRow, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, username, avatar_path, created_at")
-    .eq("username", normalizedUsername)
-    .single();
-
-  if (profileError || !profileRow) {
-    notFound();
+  if (!profile || loadError) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-6 py-16 text-white">
+        <div className="max-w-md rounded-3xl border border-rose-400/30 bg-rose-400/10 p-6 text-center">
+          <p className="text-sm text-rose-200">
+            {loadError || "Your profile could not be found."}
+          </p>
+          <Link
+            href="/dashboard"
+            className="mt-5 inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+          >
+            Back to dashboard
+          </Link>
+        </div>
+      </main>
+    );
   }
-
-  const profile = profileRow as Profile;
-  const avatarUrl = profile.avatar_path
-    ? supabase.storage.from(AVATAR_BUCKET).getPublicUrl(profile.avatar_path).data
-        .publicUrl
-    : null;
-
-  const { data: repositoryRows, error: repositoryError } = await supabase
-    .from("repositories")
-    .select("id, name, description, visibility, allowed_types, created_at")
-    .eq("user_id", profile.id)
-    .order("created_at", { ascending: false });
-
-  if (repositoryError) {
-    throw new Error(repositoryError.message);
-  }
-
-  const repositories = (repositoryRows ?? []) as Repository[];
-  const repositoryIds = repositories.map((repository) => repository.id);
-
-  const { data: itemRows, error: itemError } =
-    repositoryIds.length > 0
-      ? await supabase
-          .from("items")
-          .select("repository_id")
-          .in("repository_id", repositoryIds)
-      : { data: [], error: null };
-
-  if (itemError) {
-    throw new Error(itemError.message);
-  }
-
-  const itemCounts = (itemRows ?? []).reduce<Record<number, number>>(
-    (counts, item) => {
-      const repositoryId = Number(item.repository_id);
-      counts[repositoryId] = (counts[repositoryId] ?? 0) + 1;
-      return counts;
-    },
-    {},
-  );
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-16 text-white">
@@ -88,25 +171,18 @@ export default async function UserProfilePage({
 
               <div>
                 <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
-                  Savr Profile
+                  Your Savr Profile
                 </p>
                 <h1 className="mt-3 text-4xl font-semibold tracking-tight">
                   @{profile.username}
                 </h1>
                 <p className="mt-3 text-sm leading-7 text-slate-300">
-                  Browse this user&apos;s repositories. Public ones open normally,
-                  while secret ones stay visible as locked cards.
+                  View your profile and repositories.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Link
-                href="/explore"
-                className="inline-flex rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
-              >
-                Back to users
-              </Link>
               <Link
                 href="/dashboard"
                 className="inline-flex rounded-full border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
@@ -137,7 +213,7 @@ export default async function UserProfilePage({
               No repositories yet
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-300">
-              This user has not created any repositories yet.
+              You have not created any repositories yet.
             </p>
           </div>
         ) : (

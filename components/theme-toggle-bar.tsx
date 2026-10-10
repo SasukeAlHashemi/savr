@@ -9,13 +9,67 @@ type ThemeName = (typeof THEMES)[number];
 type ThemeOption = {
   value: ThemeName;
   label: string;
+  icon: "sun" | "moon" | "contrast";
 };
 
 const THEME_OPTIONS: ThemeOption[] = [
-  { value: "white", label: "White" },
-  { value: "black", label: "Black" },
-  { value: "dim", label: "Dim" },
+  { value: "white", label: "White", icon: "sun" },
+  { value: "black", label: "Black", icon: "moon" },
+  { value: "dim", label: "Dim", icon: "contrast" },
 ];
+
+function ThemeIcon({ icon }: { icon: ThemeOption["icon"] }) {
+  if (icon === "sun") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" />
+      </svg>
+    );
+  }
+
+  if (icon === "moon") {
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        className="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2Z" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
 
 function isThemeName(value: string | null): value is ThemeName {
   return THEMES.includes(value as ThemeName);
@@ -79,8 +133,17 @@ export function ThemeToggleBar() {
   }
 
   return (
-    <div className="fixed left-6 top-6 z-50 rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur">
-      <div className="flex items-center gap-1">
+    <div
+      role="group"
+      aria-label="Choose theme"
+      className="fixed left-6 top-6 z-50 w-[116px] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur"
+    >
+      <div className="relative flex w-full items-center">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 rounded-full bg-emerald-400 shadow-sm transition-transform duration-200 ease-out"
+          style={{ transform: `translateX(${THEMES.indexOf(activeTheme) * 100}%)` }}
+        />
         {THEME_OPTIONS.map((themeOption) => {
           const isActive = activeTheme === themeOption.value;
 
@@ -89,13 +152,16 @@ export function ThemeToggleBar() {
               key={themeOption.value}
               type="button"
               onClick={() => handleThemeSelect(themeOption.value)}
-              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
+              aria-label={`Use ${themeOption.label.toLowerCase()} theme`}
+              aria-pressed={isActive}
+              title={`${themeOption.label} theme`}
+              className={`relative z-10 inline-flex h-9 flex-1 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                 isActive
-                  ? "bg-emerald-400 text-slate-950"
-                  : "text-white hover:bg-white/10"
+                  ? "text-slate-950"
+                  : "text-slate-400 hover:text-slate-100"
               }`}
             >
-              {themeOption.label}
+              <ThemeIcon icon={themeOption.icon} />
             </button>
           );
         })}

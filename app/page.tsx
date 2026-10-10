@@ -57,7 +57,6 @@ export default function Home() {
               <li>3. Save links and upload files</li>
               <li>4. Show previews inside each repository</li>
               <li>5. Share uploaded files with public pages</li>
-              <li>6. Choose public or secret repositories</li>
             </ul>
           </div>
         </div>

@@ -65,7 +65,7 @@ export default function UserProfilePage() {
 
         const { data: repositoryRows, error: repositoryError } = await supabase
           .from("repositories")
-          .select("id, name, description, visibility, allowed_types, created_at")
+          .select("id, name, description, allowed_types, created_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -223,31 +223,7 @@ export default function UserProfilePage() {
                 key={repository.id}
                 className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-slate-950/30"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${
-                      repository.visibility === "public"
-                        ? "border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
-                        : "border border-amber-300/30 bg-amber-300/10 text-amber-100"
-                    }`}
-                  >
-                    {repository.visibility === "secret" ? (
-                      <svg
-                        aria-hidden="true"
-                        viewBox="0 0 24 24"
-                        className="h-3.5 w-3.5"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="5" y="11" width="14" height="10" rx="2" />
-                        <path d="M8 11V8a4 4 0 1 1 8 0v3" />
-                      </svg>
-                    ) : null}
-                    {repository.visibility}
-                  </span>
+                <div className="flex items-center justify-end">
                   <span className="text-sm font-medium text-emerald-200">
                     {itemCounts[repository.id] ?? 0} item
                     {(itemCounts[repository.id] ?? 0) === 1 ? "" : "s"}
@@ -274,15 +250,9 @@ export default function UserProfilePage() {
 
                 <Link
                   href={`/repositories/${repository.id}`}
-                  className={`mt-6 inline-flex rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    repository.visibility === "public"
-                      ? "bg-emerald-400 text-slate-950 hover:bg-emerald-300"
-                      : "border border-white/15 text-white hover:bg-white/10"
-                  }`}
+                  className="mt-6 inline-flex rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300"
                 >
-                  {repository.visibility === "public"
-                    ? "Open repository"
-                    : "View locked notice"}
+                  Open repository
                 </Link>
               </article>
             ))}

@@ -15,7 +15,6 @@ import { createClient } from "@/lib/supabase/client";
 type RepositorySuggestion = {
   id: number;
   name: string;
-  visibility: "public" | "secret";
 };
 
 type RepositorySearchBoxProps = {
@@ -110,17 +109,18 @@ export function RepositorySearchBox({
 
         const { data, error } = await supabase
           .from("repositories")
-          .select("id, name, visibility")
+          .select("id, name")
           .eq("user_id", user.id)
           .ilike("name", `%${trimmedQuery}%`)
-          .limit(6);
+          .limit(24);
 
         if (error) {
           throw error;
         }
 
         const normalizedQuery = trimmedQuery.toLowerCase();
-        const nextSuggestions = ((data ?? []) as RepositorySuggestion[]).sort(
+        const nextSuggestions = ((data ?? []) as RepositorySuggestion[])
+          .sort(
           (left, right) => {
             const leftName = left.name.toLowerCase();
             const rightName = right.name.toLowerCase();
@@ -136,8 +136,9 @@ export function RepositorySearchBox({
             }
 
             return leftName.localeCompare(rightName);
-          },
-        );
+            },
+          )
+          .slice(0, 6);
 
         if (isActive) {
           setSuggestions(nextSuggestions);
@@ -251,17 +252,6 @@ export function RepositorySearchBox({
                     <p className="truncate text-sm font-semibold text-white">
                       {suggestion.name}
                     </p>
-                    <div className="mt-2 text-xs text-slate-400">
-                      <span
-                        className={`rounded-full px-2 py-1 uppercase tracking-[0.18em] ${
-                          suggestion.visibility === "public"
-                            ? "border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
-                            : "border border-amber-300/30 bg-amber-300/10 text-amber-100"
-                        }`}
-                      >
-                        {suggestion.visibility}
-                      </span>
-                    </div>
                   </div>
 
                   <span className="text-xs font-medium text-emerald-200">

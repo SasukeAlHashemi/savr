@@ -137,7 +137,7 @@ export default function RepositoryDetailPage() {
 
       const { data: repositoryRow, error: repositoryError } = await supabase
         .from("repositories")
-        .select("id, name, description, visibility, allowed_types, created_at")
+        .select("id, name, description, allowed_types, created_at")
         .eq("id", repositoryId)
         .single();
 
@@ -769,17 +769,6 @@ export default function RepositoryDetailPage() {
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
                 {repository.description || "No description added yet."}
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${
-                    repository.visibility === "public"
-                      ? "border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
-                      : "border border-amber-300/30 bg-amber-300/10 text-amber-100"
-                  }`}
-                >
-                  {repository.visibility}
-                </span>
-              </div>
             </div>
 
             <div className="flex flex-wrap gap-3">

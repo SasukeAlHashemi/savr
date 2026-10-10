@@ -12,12 +12,6 @@ type RepositorySearchPageProps = {
   initialQuery: string;
 };
 
-function visibilityBadgeClasses(visibility: Repository["visibility"]) {
-  return visibility === "public"
-    ? "border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
-    : "border border-amber-300/30 bg-amber-300/10 text-amber-100";
-}
-
 export function RepositorySearchPage({
   initialQuery,
 }: RepositorySearchPageProps) {
@@ -50,7 +44,7 @@ export function RepositorySearchPage({
 
         let repositoryQuery = supabase
           .from("repositories")
-          .select("id, name, description, visibility, allowed_types, created_at")
+          .select("id, name, description, allowed_types, created_at")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
@@ -177,7 +171,6 @@ export function RepositorySearchPage({
                 <thead className="bg-slate-900/60">
                   <tr className="text-xs uppercase tracking-[0.2em] text-slate-400">
                     <th className="px-6 py-4 font-medium">Repository</th>
-                    <th className="px-6 py-4 font-medium">Visibility</th>
                     <th className="px-6 py-4 font-medium">Items</th>
                     <th className="px-6 py-4 font-medium">Action</th>
                   </tr>
@@ -192,13 +185,6 @@ export function RepositorySearchPage({
                         <p className="mt-2 max-w-md text-sm leading-6 text-slate-300">
                           {repository.description || "No description added yet."}
                         </p>
-                      </td>
-                      <td className="px-6 py-5">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] ${visibilityBadgeClasses(repository.visibility)}`}
-                        >
-                          {repository.visibility}
-                        </span>
                       </td>
                       <td className="px-6 py-5 text-sm text-slate-200">
                         {itemCountMap[repository.id] ?? 0}

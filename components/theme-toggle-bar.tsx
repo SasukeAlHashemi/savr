@@ -61,7 +61,7 @@ export function ThemeToggleBar() {
   const activeTheme = useSyncExternalStore(
     subscribeToThemeChange,
     getStoredTheme,
-    () => "dim",
+    (): ThemeName => "dim",
   );
 
   useEffect(() => {

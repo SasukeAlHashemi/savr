@@ -29,7 +29,7 @@ function decodeHtmlEntities(value: string) {
     .replace(/&gt;/g, ">");
 }
 
-function cleanText(value: string | null) {
+function cleanText(value: string | null | undefined) {
   if (!value) {
     return null;
   }

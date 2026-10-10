@@ -79,6 +79,7 @@ export function XPostEmbed({ url }: { url: string }) {
       return;
     }
 
+    const currentTweetId = tweetId;
     let isActive = true;
     container.innerHTML = "";
 
@@ -90,7 +91,7 @@ export function XPostEmbed({ url }: { url: string }) {
           return;
         }
 
-        await window.twttr.widgets.createTweet(tweetId, container, {
+        await window.twttr.widgets.createTweet(currentTweetId, container, {
           theme: "dark",
           align: "center",
           conversation: "none",

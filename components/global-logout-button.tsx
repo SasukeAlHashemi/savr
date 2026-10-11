@@ -77,7 +77,7 @@ export function GlobalLogoutButton() {
       disabled={isLoggingOut}
       title={isLoggingOut ? "Logging out" : "Log out"}
       aria-label={isLoggingOut ? "Logging out" : "Log out"}
-      className="fixed right-4 top-1 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-slate-950/90 text-white shadow-lg shadow-slate-950/40 backdrop-blur transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 sm:right-6"
+      className="fixed right-4 top-2 z-50 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-slate-950/90 text-white shadow-lg shadow-slate-950/40 backdrop-blur transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60 sm:right-6"
     >
       <LogoutIcon />
     </button>

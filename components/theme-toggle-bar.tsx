@@ -132,7 +132,7 @@ export function ThemeToggleBar() {
 
   return (
     <>
-      <header className="relative z-50 flex h-14 w-full shrink-0 items-center px-4 sm:px-6">
+      <header className="relative z-50 flex h-16 w-full shrink-0 items-center px-4 sm:px-6">
         <Link href="/dashboard" aria-label="Savr home" className="flex h-12 items-center">
           <Image
             src="/logo/savr-logo-light.png"
@@ -158,7 +158,7 @@ export function ThemeToggleBar() {
         <div
           role="group"
           aria-label="Choose theme"
-          className="fixed right-[calc(1rem+3rem+0.5rem)] top-1 z-50 h-12 w-[clamp(76px,32vw,116px)] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur sm:right-[calc(1.5rem+3rem+0.75rem)] sm:top-1 sm:w-[116px]"
+          className="fixed right-[calc(1rem+3rem+0.5rem)] top-2 z-50 h-12 w-[clamp(76px,32vw,116px)] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur sm:right-[calc(1.5rem+3rem+0.75rem)] sm:top-2 sm:w-[116px]"
         >
           <div className="relative flex h-full w-full items-center">
             <span

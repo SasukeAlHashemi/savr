@@ -125,7 +125,22 @@ export function RepositoryForm({
           </p>
         ) : null}
 
-        <div className="flex justify-end">
+        <div className="flex justify-between gap-3">
+          <Link
+            href={backHref}
+            aria-disabled={isSubmitting}
+            tabIndex={isSubmitting ? -1 : undefined}
+            onClick={(event) => {
+              if (isSubmitting) {
+                event.preventDefault();
+              }
+            }}
+            className={`rounded-full border border-white/15 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 ${
+              isSubmitting ? "cursor-not-allowed opacity-50" : ""
+            }`}
+          >
+            Cancel
+          </Link>
           <button
             type="submit"
             disabled={isSubmitting}

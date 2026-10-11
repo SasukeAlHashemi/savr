@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useSyncExternalStore } from "react";
 
 const THEMES = ["white", "black", "dim"] as const;
@@ -128,44 +130,66 @@ export function ThemeToggleBar() {
     window.dispatchEvent(new Event("savr-theme-change"));
   }
 
-  if (!isClientReady) {
-    return null;
-  }
-
   return (
-    <div
-      role="group"
-      aria-label="Choose theme"
-      className="fixed left-6 top-6 z-50 w-[116px] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur"
-    >
-      <div className="relative flex w-full items-center">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-0 w-1/3 rounded-full bg-emerald-400 shadow-sm transition-transform duration-200 ease-out"
-          style={{ transform: `translateX(${THEMES.indexOf(activeTheme) * 100}%)` }}
+    <header className="fixed left-4 top-4 z-50 flex items-center gap-3 sm:left-6 sm:top-6 sm:gap-5">
+      <Link href="/dashboard" aria-label="Savr home" className="shrink-0">
+        <Image
+          src="/logo/savr-logo-light.png"
+          alt="Savr"
+          width={931}
+          height={360}
+          priority
+          sizes="(max-width: 639px) 108px, 136px"
+          className="savr-logo-light h-auto w-[108px] sm:w-[136px]"
         />
-        {THEME_OPTIONS.map((themeOption) => {
-          const isActive = activeTheme === themeOption.value;
+        <Image
+          src="/logo/savr-logo-dark.png"
+          alt="Savr"
+          width={931}
+          height={360}
+          priority
+          sizes="(max-width: 639px) 108px, 136px"
+          className="savr-logo-dark h-auto w-[108px] sm:w-[136px]"
+        />
+      </Link>
+      {isClientReady && (
+        <div
+          role="group"
+          aria-label="Choose theme"
+          className="w-[108px] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur sm:w-[116px]"
+        >
+          <div className="relative flex w-full items-center">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-0 w-1/3 rounded-full bg-emerald-400 shadow-sm transition-transform duration-200 ease-out"
+              style={{
+                transform: `translateX(${THEMES.indexOf(activeTheme) * 100}%)`,
+              }}
+            />
+            {THEME_OPTIONS.map((themeOption) => {
+              const isActive = activeTheme === themeOption.value;
 
-          return (
-            <button
-              key={themeOption.value}
-              type="button"
-              onClick={() => handleThemeSelect(themeOption.value)}
-              aria-label={`Use ${themeOption.label.toLowerCase()} theme`}
-              aria-pressed={isActive}
-              title={`${themeOption.label} theme`}
-              className={`relative z-10 inline-flex h-9 flex-1 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-                isActive
-                  ? "text-slate-950"
-                  : "text-slate-400 hover:text-slate-100"
-              }`}
-            >
-              <ThemeIcon icon={themeOption.icon} />
-            </button>
-          );
-        })}
-      </div>
-    </div>
+              return (
+                <button
+                  key={themeOption.value}
+                  type="button"
+                  onClick={() => handleThemeSelect(themeOption.value)}
+                  aria-label={`Use ${themeOption.label.toLowerCase()} theme`}
+                  aria-pressed={isActive}
+                  title={`${themeOption.label} theme`}
+                  className={`relative z-10 inline-flex h-9 flex-1 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                    isActive
+                      ? "text-slate-950"
+                      : "text-slate-400 hover:text-slate-100"
+                  }`}
+                >
+                  <ThemeIcon icon={themeOption.icon} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </header>
   );
 }

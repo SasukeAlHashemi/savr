@@ -87,6 +87,18 @@ body {
     border-color 180ms ease;
 }
 
+.savr-logo-light {
+  display: none;
+}
+
+html[data-theme="white"] .savr-logo-light {
+  display: block;
+}
+
+html[data-theme="white"] .savr-logo-dark {
+  display: none;
+}
+
 html[data-theme] .bg-slate-950 {
   background-color: var(--theme-page-bg) !important;
 }

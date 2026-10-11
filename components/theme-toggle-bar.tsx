@@ -131,34 +131,36 @@ export function ThemeToggleBar() {
   }
 
   return (
-    <header className="fixed left-4 top-4 z-50 flex items-center gap-3 sm:left-6 sm:top-6 sm:gap-5">
-      <Link href="/dashboard" aria-label="Savr home" className="shrink-0">
-        <Image
-          src="/logo/savr-logo-light.png"
-          alt="Savr"
-          width={931}
-          height={360}
-          priority
-          sizes="(max-width: 639px) 108px, 136px"
-          className="savr-logo-light h-auto w-[108px] sm:w-[136px]"
-        />
-        <Image
-          src="/logo/savr-logo-dark.png"
-          alt="Savr"
-          width={931}
-          height={360}
-          priority
-          sizes="(max-width: 639px) 108px, 136px"
-          className="savr-logo-dark h-auto w-[108px] sm:w-[136px]"
-        />
-      </Link>
+    <>
+      <header className="relative z-50 flex h-14 w-full shrink-0 items-center px-4 sm:px-6">
+        <Link href="/dashboard" aria-label="Savr home" className="flex h-12 items-center">
+          <Image
+            src="/logo/savr-logo-light.png"
+            alt="Savr"
+            width={931}
+            height={360}
+            priority
+            sizes="(max-width: 639px) 30vw, 124px"
+            className="savr-logo-light h-auto w-[clamp(64px,30vw,112px)] sm:w-[124px]"
+          />
+          <Image
+            src="/logo/savr-logo-dark.png"
+            alt="Savr"
+            width={931}
+            height={360}
+            priority
+            sizes="(max-width: 639px) 30vw, 124px"
+            className="savr-logo-dark h-auto w-[clamp(64px,30vw,112px)] sm:w-[124px]"
+          />
+        </Link>
+      </header>
       {isClientReady && (
         <div
           role="group"
           aria-label="Choose theme"
-          className="w-[108px] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur sm:w-[116px]"
+          className="fixed right-[calc(1rem+3rem+0.5rem)] top-1 z-50 h-12 w-[clamp(76px,32vw,116px)] rounded-full border border-white/15 bg-slate-950/90 p-1 shadow-lg shadow-slate-950/40 backdrop-blur sm:right-[calc(1.5rem+3rem+0.75rem)] sm:top-1 sm:w-[116px]"
         >
-          <div className="relative flex w-full items-center">
+          <div className="relative flex h-full w-full items-center">
             <span
               aria-hidden="true"
               className="pointer-events-none absolute inset-y-0 left-0 w-1/3 rounded-full bg-emerald-400 shadow-sm transition-transform duration-200 ease-out"
@@ -177,7 +179,7 @@ export function ThemeToggleBar() {
                   aria-label={`Use ${themeOption.label.toLowerCase()} theme`}
                   aria-pressed={isActive}
                   title={`${themeOption.label} theme`}
-                  className={`relative z-10 inline-flex h-9 flex-1 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
+                  className={`relative z-10 inline-flex h-full flex-1 items-center justify-center rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
                     isActive
                       ? "text-slate-950"
                       : "text-slate-400 hover:text-slate-100"
@@ -190,6 +192,6 @@ export function ThemeToggleBar() {
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 }

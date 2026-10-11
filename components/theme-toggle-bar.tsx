@@ -132,7 +132,10 @@ export function ThemeToggleBar() {
 
   return (
     <>
-      <header className="relative z-50 flex h-16 w-full shrink-0 items-center px-4 sm:px-6">
+      <header
+        className="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center px-4 sm:px-6"
+        style={{ backgroundColor: "var(--theme-page-bg)" }}
+      >
         <Link href="/dashboard" aria-label="Savr home" className="flex h-12 items-center">
           <Image
             src="/logo/savr-logo-light.png"

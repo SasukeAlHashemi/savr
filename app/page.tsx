@@ -53,7 +53,6 @@ export default function Home() {
             </p>
             <ul className="mt-5 space-y-4 text-sm text-slate-200">
               <li>1. User signup and login</li>
-              <li>2. Repository creation with type limits</li>
               <li>3. Save links and upload files</li>
               <li>4. Show previews inside each repository</li>
               <li>5. Share uploaded files with public pages</li>
